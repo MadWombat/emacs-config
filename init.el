@@ -4,9 +4,9 @@
 
 (server-start)
 
-(if (fboundp 'menu-bar-mode) (menu-bar-mode -1))
-(if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-(if (fboundp 'scroll-bar-mode) (scroll-bar-mode -1))
+(if (fboundp 'menu-bar-mode) (menu-bar-mode 't))
+(if (fboundp 'tool-bar-mode) (tool-bar-mode 'nil))
+(if (fboundp 'scroll-bar-mode) (scroll-bar-mode 'nil))
 
 (set-terminal-coding-system 'utf-8)
 (set-keyboard-coding-system 'utf-8)
@@ -36,16 +36,29 @@
 (setq transient-mark-mode t)
 (setq truncate-partial-width-windows nil)
 (setq uniquify-buffer-name-style 'forward)
-(setq visible-bell t)
+(setq ring-bell-function 'ignore)
 (setq whitespace-line-column 100)
 (setq whitespace-style '(trailing lines space-before-tab indentation space-after-tab))
 (setq xterm-mouse-mode t)
 
 ;; display time
-(display-time-mode 't)
+(display-time-mode t)
+
+;; stop the accidental suspends
+(global-unset-key (kbd "C-z"))
+(global-unset-key (kbd "C-x C-z"))
 
 ;; map call-last-kbd-macro to a single key
 (global-set-key [f5] 'call-last-kbd-macro)
+
+;; switch between two buffers easier
+(defun switch-to-previous-buffer ()
+  (interactive)
+  (switch-to-buffer (other-buffer (current-buffer) 1)))
+(global-set-key (kbd "C-x C-x") 'switch-to-previous-buffer)
+
+;; kill emacs daemon
+(global-set-key (kbd "C-<f12>") 'kill-emacs)
 
 ;; save editor state on exit
 (desktop-save-mode t)
@@ -76,7 +89,7 @@
 
 ;; enable enhanced buffer switching
 (require 'edmacro)
-(iswitchb-mode t)
+(icomplete-mode 99)
 
 (defun iswitchb-local-keys ()
   (mapc (lambda (K) 
@@ -89,6 +102,12 @@
 
 (add-hook 'iswitchb-define-mode-map-hook 'iswitchb-local-keys)
 
+;; buffer switching
+(defun switch-to-previous-buffer ()
+  (interactive)
+  (switch-to-buffer (other-buffer (current-buffer) 1)))
+(global-set-key (kbd "C-c C-c") 'switch-to-previous-buffer)
+
 ;; fullscreen 
 (defun fullscreen ()
   (interactive)
@@ -96,13 +115,13 @@
   (x-send-client-message nil 0 nil "_NET_WM_STATE" 32 '(2 "_NET_WM_STATE_ABOVE" 0)))
 
 (global-set-key [f11] 'fullscreen)
-(fullscreen)
+;(fullscreen)
 
 ;; default window size & position
-;(add-to-list 'default-frame-alist '(width . 149))
-;(add-to-list 'default-frame-alist '(height . 48))
-;(add-to-list 'default-frame-alist '(top . 43))
-;(add-to-list 'default-frame-alist '(left . 105))
+(add-to-list 'default-frame-alist '(width . 240))
+(add-to-list 'default-frame-alist '(height . 60))
+(add-to-list 'default-frame-alist '(top . 40))
+(add-to-list 'default-frame-alist '(left . 125))
 
 ;; color scheme
 (set-cursor-color "red")
@@ -110,97 +129,64 @@
 (set-background-color "black")
 
 ;; add local plugin directories to load path
+(add-to-list 'load-path "~/.emacs.d/plugins")
 (mapcar (lambda (d) (add-to-list 'load-path d)) (directory-files "~/.emacs.d/plugins" t))
 
-;; Gist for GitHub
-(require 'gist)
+;; initialize package system
+(require 'package)
+(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
+(package-initialize)
 
-;; Emacs Got Git
-(require 'magit)
+(message "done with general setup %s" (format-time-string "%H:%M:%S"))
 
-;; rainbow parentheses
+;; Emacs Lisp Mode
 (require 'highlight-parentheses)
-(setq hl-paren-colors
-      '("red1" "orange1" "greenyellow" "green1" "springgreen1" "cyan1" "slateblue1" "magenta1" "purple"))
-
-;; ERC configurations
-(require 'erc)
-(setq erc-nick "MadWombat")
-(setq erc-user-full-name "Dmitriy Kropivnitskiy")
-(setq erc-email-userid "nigde@mitechki.net")
-(setq erc-password "whatever23")
-(setq erc-port 6667)
-(setq erc-server "irc.freenode.net")
-(setq erc-quit-reason (lambda (x) "The rest is silence..."))
-
-(add-hook 'erc-text-matched-hook
-	  (lambda (match-type nickuserhost message)
-	    (cond
-	     ((eq match-type 'current-nick)
-	      (emms-play-file "/usr/share/sounds/gnome/default/alerts/glass.ogg"))
-	     ((eq match-type 'keyword)
-	      (emms-play-file "/usr/share/sounds/gnome/default/alerts/glass.ogg")))))
-
-(defun irc ()
-  "Connect to IRC"
-  (interactive)
-  (erc :server erc-server 
-       :port erc-port
-       :nick erc-nick 
-       :password erc-password 
-       :full-name erc-user-full-name))
-
-;; Emacs Lisp
 (add-hook 'emacs-lisp-mode-hook '(lambda () (highlight-parentheses-mode)))
+
+;; Git for Emacs
+(require 'magit)
+(setq magit-last-seen-setup-instructions "1.4.0")
+(setq magit-status-buffer-switch-function 'switch-to-buffer)
+(global-set-key (kbd "C-x C-v") 'magit-status)
+
+;; YAML support 
+(require 'yaml-mode)
+(add-to-list 'auto-mode-alist '("\\.yml$" . yaml-mode))
+(add-hook 'yaml-mode-hook
+	  '(lambda ()
+	     (define-key yaml-mode-map "\C-m" 'newline-and-indent)))
+
+;; CSS support 
+(require 'css-mode)
 
 ;; autocomplete
 (require 'auto-complete-config)
 (ac-config-default)
-(global-auto-complete-mode t)
+(global-auto-complete-mode)
 
 ;; javascript
-(autoload 'javascript-mode "javascript" nil t)
-(add-to-list 'auto-mode-alist '("\\.js\\'" . javascript-mode))
-(add-hook 'js-mode-hook 
-	  '(lambda ()
-	     (setq js-indent-level 2)))
-
-;; nXhtml
-(load "nxhtml/autostart.el")
-(setq mumamo-background-colors nil) 
-(add-to-list 'auto-mode-alist '("\\.html$" . django-html-mumamo-mode))
+(require 'js2-mode)
+(add-to-list 'auto-mode-alist '("\\.js\\'" . js2-mode))
 
 ;; python support
-(require 'python)
-(add-hook 'python-mode-hook 
-	  '(lambda () 
-	     (set-variable 'py-indent-offset 4)
-	     (set-variable 'indent-tabs-mode nil)
-	     (define-key python-mode-map "\C-m" 'newline-and-indent)
-	     (add-to-list 'ac-sources 'ac-source-ropemacs)))
+(elpy-enable)
+(setq elpy-rpc-backend "jedi")
 
-(require 'pymacs)
+;; pony mode
+(require 'pony-mode)
 
-(pymacs-load "ropemacs" "rope-")
-(setq ropemacs-enable-autoimport t)
-(setq ropemacs-guess-project t)
+;; setup multi-term
+(require 'multi-term)
+(global-set-key [f1] 'multi-term)
+(add-hook 'term-mode-hook
+          (lambda ()
+            (add-to-list 'term-bind-key-alist '("M-[" . multi-term-prev))
+            (add-to-list 'term-bind-key-alist '("M-]" . multi-term-next))))
 
-; flymake
-(when (load "flymake" t)
-  ; add pyflakes to check python files
-  (defun flymake-pyflakes-init ()
-    (let* ((temp-file (flymake-init-create-temp-buffer-copy
-		       'flymake-create-temp-inplace))
-	   (local-file (file-relative-name
-			temp-file
-			(file-name-directory buffer-file-name))))
-      (list "pyflakes" (list local-file))))
-
-  (add-to-list 'flymake-allowed-file-name-masks
-	       '("\\.py\\'" flymake-pyflakes-init))
-  ; disable checking of html files (doesn't work for django templates)
-  (delete '("\\.html?\\'" flymake-xml-init) flymake-allowed-file-name-masks))
-
-(add-hook 'find-file-hook 'flymake-find-file-hook)
+(add-hook 'term-mode-hook
+          (lambda ()
+            (define-key term-raw-map (kbd "C-y") 'term-paste)
+	    (define-key term-raw-map (kbd "C-c C-j") 'term-line-mode)))
 
 (message "finished loading %s" (format-time-string "%H:%M:%S"))
