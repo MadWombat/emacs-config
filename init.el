@@ -61,7 +61,11 @@
 (global-set-key (kbd "C-<f12>") 'kill-emacs)
 
 ;; save editor state on exit
-(desktop-save-mode t)
+(require 'desktop)
+(desktop-save-mode 1)
+(setq desktop-path '("~/.emacs.d/"))
+(setq desktop-dirname "~/.emacs.d/")
+(setq desktop-base-file-name "emacs-desktop")
 
 ;; make select/paste work in natural way
 (delete-selection-mode t)
@@ -179,11 +183,6 @@
 ;; setup multi-term
 (require 'multi-term)
 (global-set-key [f1] 'multi-term)
-(add-hook 'term-mode-hook
-          (lambda ()
-            (add-to-list 'term-bind-key-alist '("M-[" . multi-term-prev))
-            (add-to-list 'term-bind-key-alist '("M-]" . multi-term-next))))
-
 (add-hook 'term-mode-hook
           (lambda ()
             (define-key term-raw-map (kbd "C-y") 'term-paste)
